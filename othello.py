@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+import copy
+
 def direction(position, direction):
     '''retrouver une position adjascente à partir d'une position de départ
     0 1 2
@@ -33,10 +35,10 @@ class Plateau(dict):
     NB_TOT = 4
 
     def __init__(self):
-        self[(3,4)] = Pion('B')
-        self[(4,3)] = Pion('B')
-        self[(3,3)] = Pion('N')
-        self[(4,4)] = Pion('N')
+        self[(3,4)] = Pion((3,4),'B')
+        self[(4,3)] = Pion((4,3),'B')
+        self[(3,3)] = Pion((3,3),'N')
+        self[(4,4)] = Pion((4,4),'N')
         self.NB_TOT += 1
         
     def get_pion(self, position):
@@ -112,17 +114,18 @@ class Plateau(dict):
                     cases_possibles[(i,j)] = case[1]
         return cases_possibles
 
-    def retourner_all(self, liste):
-        '''retourne tous les pions de la liste'''
+    def retourner_liste(self, liste):
+        '''retourne tous les pions d'une liste'''
         for pion in liste:
             self[pion].retourner()
-
+    
 
 class Pion(object):
     
-    def __init__(self, col):
+    def __init__(self, position, col):
+        self.position = position
         self.couleur = col
-        
+
     def get_col(self):
         return self.couleur
     
@@ -131,16 +134,31 @@ class Pion(object):
             self.couleur = 'B'
         else:
             self.couleur = 'N'
- 
- 
-class Graphe(object):
 
-    def __init__(self):
+
+class Arbre(object):
+
+    def __init__(self, plateau):
+        self.plateau = plateau
         pass
     
-    def simule_coup(self):
+    def simule_coup(self, position, liste_a_retourner, col, plateau):
         '''simule l'état du plateau pour 1 coup sur 1 case'''
-    pass
+        # copier l'état du plateau
+        copie_plateau = copy.deepcopy(plateau)
+        # poser le pion sur le plateau
+        copie_plateau[position] = Pion[position, col]
+        # retourner tous les pions à retourner
+        copie_plateau.retourner_liste(liste_a_retourner)
+
+        return copie_plateau
+    
+    def simulation(self, coup):
+        '''à partir d'un plateau donné, regarde tous les coups possibles par le prochain joueur
+        pour chaque coup possible, crée un objet Coup
+        pour chaque objet Coup, en se basant sur le plateau, faire de même
+        et ça 2 fois (au début on pourra appeler cette fonction 2 fois)'''
+        pass
         
     def min_max(self):
         pass
@@ -151,5 +169,12 @@ class Graphe(object):
  
 class Coup(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, coord, joueur, plateau):
+        self.coord = coord # du pion placé
+        self.joueur = joueur # True si IA, False si joueur, puisque qu'on ne cherche qu'à maximiser l'IA
+        self.plateau = plateau # après avoir joué le coup
+        self.poids = 0
+        self.poids_fils = [] # liste avec les poids de tous les fils
+    
+    def calc_poids(self):
+        '''calcul du poids du coup'''
