@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 
+# construction des classes et définitions des méthodes et fonctions nécessaires
+
 import copy
 
 def direction(position, direction):
-    '''retrouver une position adjascente à partir d'une position de départ
+    '''Retrouver une position adjascente à partir d'une position de départ
     0 1 2
     7 P 3
     6 5 4'''
@@ -32,35 +34,41 @@ def fonction2():
 
 class Plateau(dict):
 
-    NB_TOT = 4
+    #NB_TOT = 4
 
     def __init__(self):
         self[(3,4)] = Pion((3,4),'B')
         self[(4,3)] = Pion((4,3),'B')
         self[(3,3)] = Pion((3,3),'N')
         self[(4,4)] = Pion((4,4),'N')
-        self.NB_TOT += 1
+        #self.NB_TOT += 1
         
-    def get_pion(self, position):
-        '''Retourne la couleur du pion situé sur une certaine case, si case vide retourne None'''
-        if position in self:
-            return self[position].get_col()
-        return None
+    #def get_pion(self, position):
+        #'''Retourne la couleur du pion situé sur une certaine case, si case vide retourne None'''
+        #if position in self:
+            #return self[position].get_couleur()
+        #return None
+
+    def evaluation(self):
+        '''Fonctiond'évaluation qui sert à calculer le poids d'une feuille dans l'algo min_max
+        dans l'exemple, le mec basait son évaluation seulement sur le nombre de pions dudit joueur sur le plateau
+        (si le joueur a 3 pions de plus que son adversaire sur le plateau, le poids du coup est de 3)'''
+        pass
         
     def nombre_pions(self):
         '''Calcule le nombre de pions de chaque couleur sur le plateau'''
         N = 0
         B = 0
         for pion in self.values():
-            if pion.couleur == 'B':
-                B += 1
-            else:
+            if pion.couleur == 'N':
                 N += 1
+            else:
+                B += 1
         return (N,B)
     
-    def coup_possible(self, case, col):
-        '''pour une case donnée et la couleur du joueur en train de jouer, dit si le joueur peut placer un pion ici et quels pions adverses seront retournés
-        appeler cette fonction sur toutes les cases vides du plateau ???'''
+    def coup_valide(self, position, couleur):
+        '''Pour une case donnée et la couleur du joueur en train de jouer, dit si le joueur peut placer un pion sur la case
+        en retournant la liste des pions adverses qui seront retournés (si la liste est vide, la case ne peut pas être jouée par ce joueur)'''
         
         a_retourner = []
 
@@ -69,53 +77,58 @@ class Plateau(dict):
         #    return (False, a_retourner)
 
         # regarder si la case est occupée
-        if case in self:
-            return (False, a_retourner)
+        if position in self:
+            return a_retourner
         
-        # on part dans les 8 directions : on doit avoir dans la ligne/colonne/diago un ou plusieurs pion adverses > un pion du joueur, dans ce cas tous ces pions adverses seront à retourner
-        #   il ne faut pas que la case voisine soit vide ou avec un pion de la couleur du joueur
+        # SINON on part dans les 8 directions -> on doit avoir dans la ligne/colonne/diago : un ou plusieurs pion adverses > un pion du joueur
+        #  -> dans ce cas tous ces pions adverses seront à retourner (ajouter les pions de a_ret à a_retourner)
         for i in range(8):
             a_ret = []
-            pos = direction(case, i)
+            pos = direction(position, i)
 
-            # regarder si la case voisine est vide (NON), de la couleur du jour (NON), de la couleur adverse (OUI)
-            if pos not in self or self[pos].couleur == col:
+            # regarder si la case voisine est vide (NON), de la couleur du jour (NON)...
+            if pos not in self or self[pos].couleur == couleur:
                 continue
-
-            elif self[pos].couleur != col:
+            
+            # ...de la couleur adverse (OUI)
+            elif self[pos].couleur != couleur:
                 a_ret.append(pos)
                 pos = direction(pos,i)
 
-                # continue dans la même direction jusqu'à tomber sur une case vide (ou existe pas) ou même couleur
-                while pos in self and self[pos].couleur != col:
+                # on continue dans la même direction...
+                while pos in self and self[pos].couleur != couleur:
                     a_ret.append(pos)
                     pos = direction(pos,i)
 
-                if pos in self and self[pos].couleur == col:
+                # ... jusqu'à tomber sur une case de la même couleur (OUI) -> dans ce cas on ajoute les cases à retourner à a_retourner
+                if pos in self and self[pos].couleur == couleur:
                     for _ in a_ret:
                         a_retourner.append(_)
 
-                else:
+                # ... ou une case vide (ou existe pas) (NON)
+                elif pos not in self:
                     continue
 
-        if a_retourner == []:
-            return (False, [])
-        else:
-            return (True, a_retourner)
+        return a_retourner
             
-    def fonction3(self, col):
-        '''pour un joueur, regarde toutes les cases vides du plateau et fait la liste de tous les coups qui peuvent être joués par ce joueur (coup_possible)
-        si la liste est vide alors le joueur doit passer son tour'''
+    def coups_possibles(self, couleur):
+        '''Pour un joueur (sa couleur), regarde toutes les cases vides du plateau
+        et fait la liste de toutes les positions qui peuvent être jouées par ce joueur
+        en associant à chaque une liste des pions à retourner pour chaque (coup_valide).
+        Si la liste est vide alors le joueur doit passer son tour (None)'''
         cases_possibles = {}
         for i in range(8):
             for j in range(8):
-                case = self.coup_possible((i,j), col)
-                if (i,j) not in self and case[0] == True:
-                    cases_possibles[(i,j)] = case[1]
-        return cases_possibles
+                case = self.coup_valide((i,j), couleur)
+                if (i,j) not in self and case:
+                    cases_possibles[(i,j)] = case
+        if cases_possibles:
+            return cases_possibles
+        else:
+            return None
 
     def retourner_liste(self, liste):
-        '''retourne tous les pions d'une liste'''
+        '''Retourne sur le plateau tous les pions d'une liste de leur position'''
         for pion in liste:
             self[pion].retourner()
     
@@ -126,10 +139,11 @@ class Pion(object):
         self.position = position
         self.couleur = col
 
-    def get_col(self):
-        return self.couleur
+    #def get_couleur(self):
+        #return self.couleur
     
     def retourner(self):
+        '''Retourne un seul pion (change sa couleur)'''
         if self.couleur == 'N':
             self.couleur = 'B'
         else:
@@ -140,27 +154,49 @@ class Arbre(object):
 
     def __init__(self, plateau):
         self.plateau = plateau
-        pass
     
-    def simule_coup(self, position, liste_a_retourner, col, plateau):
-        '''simule l'état du plateau pour 1 coup sur 1 case'''
+    def simule_coup(position, liste_a_retourner, col, plateau):
+        '''Simule l'état du plateau pour 1 coup sur 1 case'''
         # copier l'état du plateau
         copie_plateau = copy.deepcopy(plateau)
         # poser le pion sur le plateau
-        copie_plateau[position] = Pion[position, col]
+        copie_plateau[position] = Pion(position, col)
         # retourner tous les pions à retourner
         copie_plateau.retourner_liste(liste_a_retourner)
 
         return copie_plateau
     
-    def simulation(self, coup):
+    def simulation(self, coup, plateau):
         '''à partir d'un plateau donné, regarde tous les coups possibles par le prochain joueur
-        pour chaque coup possible, crée un objet Coup
+        pour chaque coup possible, crée un objet Coup en lui associant l'état du plateau après le coup
         pour chaque objet Coup, en se basant sur le plateau, faire de même
         et ça 2 fois (au début on pourra appeler cette fonction 2 fois)'''
-        pass
         
-    def min_max(self):
+        copie_plateau = copy.deepcopy(plateau)
+        possible = copie_plateau.coups_possibles(coup.couleur)
+        fils = []
+
+        if possible[0] :
+            copie_plateau = self.simule_coup(coup.position, possible[1], coup.couleur, copie_plateau)
+            new = Coup(coup.position, coup.joueur, coup.couleur, copie_plateau, coup)
+            fils.append(new)
+
+        f = []
+        for c in fils:
+            pos = c.plateau.coup_valide(c.position, c.couleur)
+            if pos:
+                c.plateau.set_plateau(self.simule_coup(c.position, pos, c.couleur, c.plateau))
+                n = Coup(c.position, c.joueur, c.couleur, c.plateau, c)
+                f.append(n)
+        
+        return f
+
+        
+    def minimize(self):
+        '''on l'appelle quand on veut '''
+        pass
+
+    def maximize(self):
         pass
     
     def alpha_beta(self):
@@ -169,12 +205,17 @@ class Arbre(object):
  
 class Coup(object):
 
-    def __init__(self, coord, joueur, plateau):
-        self.coord = coord # du pion placé
+    def __init__(self, position, joueur, couleur, plateau, pere):
+        self.position = position # du pion placé
         self.joueur = joueur # True si IA, False si joueur, puisque qu'on ne cherche qu'à maximiser l'IA
+        self.couleur = couleur # couleur du joueur qui joue ce coup
         self.plateau = plateau # après avoir joué le coup
+        self.pere = pere # coup précédent (noeud père dans l'arbre)
         self.poids = 0
         self.poids_fils = [] # liste avec les poids de tous les fils
+    
+    def set_plateau(self, new):
+        self.plateau = new
     
     def calc_poids(self):
         '''calcul du poids du coup'''
