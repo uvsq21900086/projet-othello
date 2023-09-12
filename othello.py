@@ -25,11 +25,12 @@ def direction(position, direction):
         return (position[0]-1, position[1]-1)
     if direction == 7: 
         return (position[0]-1, position[1])
-
-def fonction2():
-    '''convertir les positions (a1) de plateau en coordonnées (0,0)
-    UTILE ???'''
-    pass
+    
+def couleur_adverse(couleur):
+    if couleur == 'N':
+        return 'B'
+    elif couleur == 'B':
+        return 'N'
 
 
 class Plateau(dict):
@@ -50,7 +51,7 @@ class Plateau(dict):
         #return None
 
     def evaluation(self):
-        '''Fonctiond'évaluation qui sert à calculer le poids d'une feuille dans l'algo min_max
+        '''Fonction d'évaluation qui sert à calculer le poids d'une feuille dans l'algo min_max
         dans l'exemple, le mec basait son évaluation seulement sur le nombre de pions dudit joueur sur le plateau
         (si le joueur a 3 pions de plus que son adversaire sur le plateau, le poids du coup est de 3)'''
         pass
@@ -115,69 +116,83 @@ class Plateau(dict):
         '''Pour un joueur (sa couleur), regarde toutes les cases vides du plateau
         et fait la liste de toutes les positions qui peuvent être jouées par ce joueur
         en associant à chaque une liste des pions à retourner pour chaque (coup_valide).
-        Si la liste est vide alors le joueur doit passer son tour (None)'''
+        Si la liste est vide alors le joueur doit passer son tour'''
         cases_possibles = {}
         for i in range(8):
             for j in range(8):
                 case = self.coup_valide((i,j), couleur)
                 if (i,j) not in self and case:
                     cases_possibles[(i,j)] = case
-        if cases_possibles:
-            return cases_possibles
-        else:
-            return None
-
+        return cases_possibles
+    
     def retourner_liste(self, liste):
         '''Retourne sur le plateau tous les pions d'une liste de leur position'''
         for pion in liste:
             self[pion].retourner()
-    
+        
+    def simule_coup(self, position, liste_a_retourner, couleur):
+        '''Simule l'état du plateau pour 1 coup sur 1 case
+        (sur une copie du plateau, pose le pion et retourne tous les pions qu'il faut)'''
+        # copier l'état du plateau
+        copie_plateau = copy.deepcopy(self)
+        # poser le pion sur le plateau
+        copie_plateau[position] = Pion(position, couleur)
+        # retourner tous les pions à retourner
+        copie_plateau.retourner_liste(liste_a_retourner)
+        return copie_plateau
+
 
 class Pion(object):
     
-    def __init__(self, position, col):
+    def __init__(self, position, couleur):
         self.position = position
-        self.couleur = col
+        self.couleur = couleur
 
-    #def get_couleur(self):
+    #def set_couleur(self):
         #return self.couleur
     
     def retourner(self):
         '''Retourne un seul pion (change sa couleur)'''
         if self.couleur == 'N':
             self.couleur = 'B'
-        else:
+        elif self.couleur == 'B':
             self.couleur = 'N'
 
 
-class Arbre(object):
+class Coup(object):
 
-    def __init__(self, plateau):
-        self.plateau = plateau
+    def __init__(self, position, couleur, joueur, plateau, pere):
+        self.position = position # du pion placé
+        self.couleur = couleur # couleur du joueur qui joue ce coup
+        self.joueur = joueur # True si IA, False si joueur, puisque qu'on ne cherche qu'à maximiser l'IA        
+        self.plateau = plateau # après avoir joué le coup
+        self.pere = pere # coup précédent (noeud père dans l'arbre)
+        self.fils = [] # références à tous les fils du noeud
+        self.poids = 0 # poids du coup
+        self.poids_fils = [] # liste avec les poids de tous les fils
     
-    def simule_coup(position, liste_a_retourner, col, plateau):
-        '''Simule l'état du plateau pour 1 coup sur 1 case'''
-        # copier l'état du plateau
-        copie_plateau = copy.deepcopy(plateau)
-        # poser le pion sur le plateau
-        copie_plateau[position] = Pion(position, col)
-        # retourner tous les pions à retourner
-        copie_plateau.retourner_liste(liste_a_retourner)
+    def calc_poids(self):
+        '''calcul du poids du coup
+        quand on tombe sur une feuille, càd un coup dont la liste des fils est vide,
+        on calcule son poids et on le met en guise de poids du père.
+        après ça, on regarde le poids des autres fils du père et :
+        - si le père est true, on prend le plus grand des poids (avec une boucle if > : on remplace le poids)
+        - si le père est false, on prend le plus petit des poids
+        '''
+        pass
 
-        return copie_plateau
-    
-    def simulation(self, coup, plateau):
-        '''à partir d'un plateau donné, regarde tous les coups possibles par le prochain joueur
-        pour chaque coup possible, crée un objet Coup en lui associant l'état du plateau après le coup
-        pour chaque objet Coup, en se basant sur le plateau, faire de même
+    def simulation(self, coup, plateau, couleur):
+        '''à partir d'un plateau donné, regarde tous les coups possibles par le prochain joueur (couleur).
+        pour chaque coup possible, crée un objet Coup en lui associant l'état du plateau après le coup.
+        pour chaque objet Coup, en se basant sur le plateau, faire de même.
         et ça 2 fois (au début on pourra appeler cette fonction 2 fois)'''
         
         copie_plateau = copy.deepcopy(plateau)
-        possible = copie_plateau.coups_possibles(coup.couleur)
+        possible = copie_plateau.coups_possibles(couleur)
         fils = []
 
         if possible[0] :
-            copie_plateau = self.simule_coup(coup.position, possible[1], coup.couleur, copie_plateau)
+            copie_plateau = copie_plateau.simule_coup(coup.position, possible[1], coup.couleur, copie_plateau)
             new = Coup(coup.position, coup.joueur, coup.couleur, copie_plateau, coup)
             fils.append(new)
 
@@ -193,7 +208,6 @@ class Arbre(object):
 
         
     def minimize(self):
-        '''on l'appelle quand on veut '''
         pass
 
     def maximize(self):
@@ -202,20 +216,3 @@ class Arbre(object):
     def alpha_beta(self):
         pass
     
- 
-class Coup(object):
-
-    def __init__(self, position, joueur, couleur, plateau, pere):
-        self.position = position # du pion placé
-        self.joueur = joueur # True si IA, False si joueur, puisque qu'on ne cherche qu'à maximiser l'IA
-        self.couleur = couleur # couleur du joueur qui joue ce coup
-        self.plateau = plateau # après avoir joué le coup
-        self.pere = pere # coup précédent (noeud père dans l'arbre)
-        self.poids = 0
-        self.poids_fils = [] # liste avec les poids de tous les fils
-    
-    def set_plateau(self, new):
-        self.plateau = new
-    
-    def calc_poids(self):
-        '''calcul du poids du coup'''
